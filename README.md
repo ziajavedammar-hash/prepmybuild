@@ -1,3 +1,3 @@
 # PrepMyBuild
 
-Production static site is published from the `site/` directory by Netlify.
+Production deploys automatically from GitHub to Netlify.
