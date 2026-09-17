@@ -1,8 +1,9 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 const OUT = 'dist';
 const ASSETS = path.join(OUT, 'assets');
+const BASE = 'https://prepmybuild.com';
 await mkdir(ASSETS, { recursive: true });
 
 for (const name of ['hero','concrete','gravel','fence','paint']) {
@@ -46,4 +47,94 @@ await patchFile('quote-check.html', html => {
   return html;
 });
 
-console.log('Photorealistic visual polish complete');
+// SEO URL normalization: use one clean, extensionless URL everywhere.
+const aliasTargets = new Map([
+  ['/calculators/concrete-bags-calculator', '/calculators/concrete-calculator'],
+  ['/calculators/concrete-patio-calculator', '/calculators/concrete-calculator'],
+  ['/calculators/concrete-slab-calculator', '/calculators/concrete-calculator'],
+  ['/calculators/gravel-depth-calculator', '/calculators/gravel-calculator'],
+  ['/calculators/gravel-driveway-calculator', '/calculators/gravel-calculator'],
+  ['/calculators/fence-material-calculator', '/calculators/fence-calculator'],
+  ['/calculators/fence-post-spacing-calculator', '/calculators/fence-calculator'],
+  ['/calculators/interior-paint-calculator', '/calculators/paint-calculator'],
+  ['/calculators/exterior-paint-calculator', '/calculators/paint-calculator'],
+  ['/calculators/paint-coverage-calculator', '/calculators/paint-calculator']
+]);
+
+function cleanUrl(url) {
+  if (!url) return url;
+  let out = url.replace(/\.html(?=([?#]|$))/g, '');
+  if (out.endsWith('/index')) out = out.slice(0, -5);
+  return out;
+}
+
+async function htmlFiles(dir, prefix = '') {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const found = [];
+  for (const entry of entries) {
+    const rel = path.join(prefix, entry.name);
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) found.push(...await htmlFiles(full, rel));
+    else if (entry.name.endsWith('.html')) found.push(rel.replaceAll('\\', '/'));
+  }
+  return found;
+}
+
+for (const rel of await htmlFiles(OUT)) {
+  await patchFile(rel, html => {
+    let out = html;
+    out = out.replace(/href="([^"]+\.html(?:[?#][^"]*)?)"/g, (_, u) => `href="${cleanUrl(u)}"`);
+    out = out.replace(/content="0;url=([^";]+\.html)"/g, (_, u) => `content="0;url=${cleanUrl(u)}"`);
+    out = out.replace(new RegExp(`${BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^"'< >]*?)\\.html`, 'g'), (_, p) => `${BASE}${p}`);
+    return out;
+  });
+}
+
+// Rebuild sitemap with only canonical, index-worthy clean URLs.
+const sitemapUrls = [
+  '/',
+  '/calculators/',
+  '/calculators/concrete-calculator',
+  '/calculators/gravel-calculator',
+  '/calculators/fence-calculator',
+  '/calculators/paint-calculator',
+  '/quote-check',
+  '/guides/',
+  '/guides/how-much-concrete-for-patio',
+  '/guides/how-much-gravel-for-driveway',
+  '/guides/how-many-fence-posts-do-i-need',
+  '/about',
+  '/methodology',
+  '/privacy',
+  '/terms'
+];
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapUrls.map(u => `  <url><loc>${BASE}${u}</loc></url>`).join('\n')}\n</urlset>\n`;
+await writeFile(path.join(OUT, 'sitemap.xml'), sitemap, 'utf8');
+
+// Permanent redirects consolidate every old .html and calculator alias URL.
+const redirects = [
+  '/calculators /calculators/ 301',
+  '/guides /guides/ 301',
+  '/index.html / 301',
+  '/calculators/index.html /calculators/ 301',
+  '/guides/index.html /guides/ 301',
+  '/quote-check.html /quote-check 301',
+  '/about.html /about 301',
+  '/methodology.html /methodology 301',
+  '/privacy.html /privacy 301',
+  '/terms.html /terms 301',
+  '/guides/how-much-concrete-for-patio.html /guides/how-much-concrete-for-patio 301',
+  '/guides/how-much-gravel-for-driveway.html /guides/how-much-gravel-for-driveway 301',
+  '/guides/how-many-fence-posts-do-i-need.html /guides/how-many-fence-posts-do-i-need 301',
+  '/calculators/concrete-calculator.html /calculators/concrete-calculator 301',
+  '/calculators/gravel-calculator.html /calculators/gravel-calculator 301',
+  '/calculators/fence-calculator.html /calculators/fence-calculator 301',
+  '/calculators/paint-calculator.html /calculators/paint-calculator 301'
+];
+for (const [alias, target] of aliasTargets) {
+  redirects.push(`${alias}.html ${target} 301`);
+  redirects.push(`${alias} ${target} 301`);
+}
+await writeFile(path.join(OUT, '_redirects'), `${redirects.join('\n')}\n`, 'utf8');
+
+console.log('Photorealistic visual polish + SEO URL normalization complete');
