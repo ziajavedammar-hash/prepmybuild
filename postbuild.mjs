@@ -99,6 +99,7 @@ const sitemapUrls = [
   '/calculators/fence-calculator',
   '/calculators/paint-calculator',
   '/quote-check',
+  '/compare-quotes',
   '/guides/',
   '/guides/how-much-concrete-for-patio',
   '/guides/how-much-gravel-for-driveway',
@@ -119,6 +120,7 @@ const redirects = [
   '/calculators/index.html /calculators/ 301',
   '/guides/index.html /guides/ 301',
   '/quote-check.html /quote-check 301',
+  '/compare-quotes.html /compare-quotes 301',
   '/about.html /about 301',
   '/methodology.html /methodology 301',
   '/privacy.html /privacy 301',
@@ -146,4 +148,12 @@ await patchFile('quote-check.html', html => {
   if (html.includes('compare-quotes.html')) return html;
   const card = '<section style="max-width:1060px;margin:24px auto;padding:24px;background:#e9f5ef;border-radius:16px"><h2>Got more than one contractor bid?</h2><p>Compare prices, written scope, warranties and missing details side by side.</p><a href="/compare-quotes.html" style="color:#1f6b4d;font-weight:800">Compare up to three quotes →</a></section>';
   return html.replace('</main>', card + '</main>');
+});
+
+
+// Discoverable clean URL for comparison tool; link it visibly from home.
+await patchFile('index.html', html => {
+  if (html.includes('href="/compare-quotes"')) return html;
+  const panel='<section style="max-width:1100px;margin:28px auto;padding:24px;border:1px solid #dce7df;border-radius:16px;background:#f1f8f3"><h2 style="margin:0 0 8px">Already have two contractor bids?</h2><p>Compare prices, scope, payment terms and missing details before you hire.</p><a class="btn primary" href="/compare-quotes">Compare contractor quotes →</a></section>';
+  return html.replace('</main>',panel+'</main>');
 });
