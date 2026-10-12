@@ -138,3 +138,12 @@ for (const [alias, target] of aliasTargets) {
 await writeFile(path.join(OUT, '_redirects'), `${redirects.join('\n')}\n`, 'utf8');
 
 console.log('Photorealistic visual polish + SEO URL normalization complete');
+
+
+// Prototype: include the browser-private quote comparison worksheet in the build.
+await writeFile(path.join(OUT, 'compare-quotes.html'), await readFile('quote-compare.html', 'utf8'));
+await patchFile('quote-check.html', html => {
+  if (html.includes('compare-quotes.html')) return html;
+  const card = '<section style="max-width:1060px;margin:24px auto;padding:24px;background:#e9f5ef;border-radius:16px"><h2>Got more than one contractor bid?</h2><p>Compare prices, written scope, warranties and missing details side by side.</p><a href="/compare-quotes.html" style="color:#1f6b4d;font-weight:800">Compare up to three quotes →</a></section>';
+  return html.replace('</main>', card + '</main>');
+});
