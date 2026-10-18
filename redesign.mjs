@@ -26,6 +26,14 @@ await cp('redesign/assets','dist/assets/redesign',{recursive:true});
 await cp('redesign/site.css','dist/assets/planning.css');
 await cp('redesign/client.js','dist/assets/planning.js');
 await cp('redesign/content.mjs','dist/assets/planning-content.js');
+await cp('redesign/plan-pdf.mjs','dist/assets/plan-pdf.js');
+await cp('redesign/plan-download.js','dist/assets/plan-download.js');
+await cp('redesign/fonts','dist/assets/fonts',{recursive:true});
+await mkdir('dist/assets/vendor',{recursive:true});
+await cp('node_modules/pdf-lib/dist/pdf-lib.min.js','dist/assets/vendor/pdf-lib.min.js');
+await cp('node_modules/pdf-lib/LICENSE.md','dist/assets/vendor/pdf-lib-LICENSE.txt');
+await cp('node_modules/@pdf-lib/fontkit/dist/fontkit.umd.min.js','dist/assets/vendor/fontkit.min.js');
+
 await writeFile('dist/assets/house.svg',`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#294c3c"/><path d="m9 18 11-10 11 10v15H9Zm8 15V21h6v12" fill="none" stroke="#f7f6f0" stroke-width="2"/></svg>`);
 // Keep every existing page and its scripts; unify the surrounding navigation only.
 async function walk(dir){for(const e of await readdir(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory())await walk(p);else if(e.name.endsWith('.html')&&!['dist/index.html','dist/inspiration/index.html'].includes(p)){let html=await readFile(p,'utf8');html=html.replace('</head>','<link rel="stylesheet" href="/assets/planning.css"></head>');if(/<header\b[\s\S]*?<\/header>/.test(html)){html=html.replace(/<header\b[\s\S]*?<\/header>/,header+'<div class="legacy-backlink"><a href="/inspiration/#your-plan">← Return to your renovation plan</a></div>')}else html=html.replace(/<body([^>]*)>/,`<body$1>${header}<div class="legacy-backlink"><a href="/inspiration/#your-plan">← Return to your renovation plan</a></div>`);if(html.includes('<main'))html=html.replace('<main','<main id="main"');else html=html.replace('</div><section','</div><main id="main"><section').replace(/<footer\b/,'</main><footer');if(html.includes('<footer'))html=html.replace(/<footer\b[\s\S]*?<\/footer>/,footer);else html=html.replace('</body>',footer+'</body>');html=html.replace('</body>','<script type="module" src="/assets/planning.js"></script></body>');await writeFile(p,html)}}}

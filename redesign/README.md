@@ -44,3 +44,13 @@ Ten new assets were created with the built-in image generation tool, using each 
 Final assets are `redesign/assets/{bathroom,patio,paint,fence,kitchen}-{modern,classic}.webp`, with `-640.webp` responsive siblings. These are pre-made illustrative concepts, not live transformations of user photos.
 
 The seven additional checks cover step visibility/navigation, all 15 visual combinations, side-by-side selection, persisted mixed-style details and exports, a brief without form input, custom-project honesty and validation of collapsed optional inputs. Actual browser rendering and external PDF/OCR remain outside the DOM test coverage.
+
+## Visual PDF export
+
+The primary plan download is a PDF with the selected concept image, embedded fonts, readable section hierarchy, budget/timing cards, selected details, scope checklist and links to the existing tools. Empty notes are omitted and unentered costs are not shown as zero. Budget targets remain distinct from cost estimates. A plain-text copy remains available in the optional contractor-details section.
+
+The PDF libraries and fonts are self-hosted and loaded only when the PDF button is used. Image conversion, PDF rendering and download happen in the visitor's browser; no planning notes or photos are sent to a server. A failed resource load restores the action and preserves local notes. The exporter snapshots the selected project/style and inputs before asynchronous rendering.
+
+`npm test` now runs 27 functionality checks plus real PDF byte/font/image/pagination checks. `tests/pdf-export.mjs` defaults to an intentionally tiny fixture image and writes ignored QA files under `tmp/pdf-qa/`. For visual QA with an actual concept photograph, provide `PDF_QA_IMAGE` pointing to a JPEG and optionally `PDF_QA_DIR`. A fencing sample matching a $15,000 target and 3–6 month timing was rendered and inspected with Poppler/PyMuPDF. Long notes and Unicode text were checked with text extraction and page-margin checks.
+
+The renderer uses pdf-lib and @pdf-lib/fontkit with DejaVu fonts. Font licence information is included in the font directory; pdf-lib's licence is copied into the built vendor assets. The export does not perform live image transformations or estimate project costs.
