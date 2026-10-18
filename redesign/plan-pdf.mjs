@@ -1,0 +1,42 @@
+// Pure PDF renderer shared by browser downloads and Node export checks.
+export async function createPlanPdf(model,{PDFLib,fontkit,bodyFont,displayFont,conceptJpeg}){
+ const {PDFDocument,StandardFonts,rgb,pushGraphicsState,popGraphicsState,rectangle,clip,endPath}=PDFLib;
+ const doc=await PDFDocument.create();doc.registerFontkit(fontkit);
+ doc.setTitle(model.name||model.project+' project plan');doc.setAuthor('PrepMyBuild');doc.setSubject('Illustrative renovation direction and homeowner planning brief');
+ const [body,display,bold,photo]=await Promise.all([doc.embedFont(bodyFont,{subset:true}),doc.embedFont(displayFont,{subset:true}),doc.embedFont(StandardFonts.HelveticaBold),doc.embedJpg(conceptJpeg)]);
+ const ink=rgb(.15,.24,.19),muted=rgb(.39,.44,.40),line=rgb(.84,.87,.82),cream=rgb(.97,.97,.94),sage=rgb(.90,.93,.86),white=rgb(1,1,1);
+ const W=612,H=792,M=42,CW=W-M*2;
+ let page,y;
+ const clean=s=>String(s??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/[\u2010-\u2015]/g,'-');
+ const draw=(s,x,baseline,{size=11,font=body,color=ink}={})=>page.drawText(clean(s),{x,y:baseline,size,font,color});
+ function lines(text,width=CW,size=11,font=body){const result=[];for(const paragraph of clean(text).split('\n')){let current='';for(const word of paragraph.split(/\s+/).filter(Boolean)){const candidate=current?current+' '+word:word;if(font.widthOfTextAtSize(candidate,size)<=width){current=candidate;continue}if(current)result.push(current);current='';for(const c of word){if(font.widthOfTextAtSize(current+c,size)>width&&current){result.push(current);current=''}current+=c}}result.push(current)}return result}
+ function addPage(continuation=false){page=doc.addPage([W,H]);page.drawRectangle({x:0,y:0,width:W,height:H,color:white});draw('PrepMyBuild.',M,H-49,{size:20,font:display});draw('HOME PROJECT PLAN',W-M-124,H-43,{size:8,font:bold,color:muted});draw(model.date,W-M-124,H-57,{size:8,color:muted});page.drawLine({start:{x:M,y:H-75},end:{x:W-M,y:H-75},thickness:.7,color:line});y=H-101;if(continuation){draw(model.name||model.project+' project',M,y,{size:10,color:muted});y-=30}}
+ function ensure(h){if(y-h<55)addPage(true)}
+ function paragraph(text,{size=11,font=body,color=ink,width=CW,leading=17,after=12,x=M}={}){for(const l of lines(text,width,size,font)){ensure(leading);draw(l,x,y,{size,font,color});y-=leading}y-=after}
+ function heading(text){ensure(85);draw(text,M,y,{size:16,font:display});y-=25}
+ function detail(label,text){const ls=lines(text,CW-18,11,body);ensure(Math.min(64,28+ls.length*16));draw(label.toUpperCase(),M,y,{size:8,font:bold,color:muted});y-=18;paragraph(text,{x:M,width:CW,size:11,leading:16,after:12})}
+ function boxText(text,x,top,width,size=10,color=ink){let yy=top;for(const l of lines(text,width,size,body)){draw(l,x,yy,{size,color});yy-=15}return yy}
+ const usd=v=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(Number(v));
+ addPage();
+ const title=model.name||'Your '+model.project.toLowerCase()+' project';const titleLines=lines(title,CW,27,display).length;paragraph(title,{font:display,size:27,leading:33,after:1});paragraph(model.style+'  /  '+model.conceptTitle,{size:10,color:muted,leading:15,after:14});
+ const imageH=Math.max(160,228-(titleLines-1)*28);ensure(imageH+25);const top=y;page.pushOperators(pushGraphicsState(),rectangle(M,top-imageH,CW,imageH),clip(),endPath());const scale=Math.max(CW/photo.width,imageH/photo.height);const iw=photo.width*scale,ih=photo.height*scale;page.drawImage(photo,{x:M+(CW-iw)/2,y:top-imageH+(imageH-ih)/2,width:iw,height:ih});page.pushOperators(popGraphicsState());y=top-imageH-14;draw('Illustrative design concept - not a transformation of your own photograph',M,y,{size:8,color:muted});y-=28;
+ const budgetLabel=model.target!==null?usd(model.target):'Not set yet';const timing=model.timing==='Just exploring'?'Just exploring':model.timing;
+ const cardText=[['YOUR BUDGET TARGET',budgetLabel],['YOUR TIMING',timing]];const cardW=(CW-14)/2;ensure(76);cardText.forEach(([label,value],i)=>{const x=M+i*(cardW+14);page.drawRectangle({x,y:y-62,width:cardW,height:62,color:cream});draw(label,x+15,y-17,{size:8,font:bold,color:muted});draw(value,x+15,y-43,{size:17,font:display})});y-=89;
+ heading('Details to borrow');for(const item of model.details){const split=item.indexOf(':');detail(split>=0?item.slice(0,split):'Design detail',split>=0?item.slice(split+1).trim():item)}
+ // Start practical planning on a fresh page so the main concept remains a clear visual overview.
+ addPage(true);heading('From inspiration to next steps');paragraph('Use this brief to explain your direction and ask more consistent questions when speaking to contractors.',{size:11,color:muted,after:18});
+ if(model.consideration)paragraph(model.consideration,{size:10,color:muted,leading:16,after:18});
+ if(model.goal)detail('What matters to you',model.goal);
+ if(model.customIdea)detail('Your project idea',model.customIdea);
+ if(model.measurements)detail('Measurements & existing conditions',model.measurements);
+ if(model.notes)detail('Your priorities & questions',model.notes);
+ if(!model.goal&&!model.customIdea&&!model.measurements&&!model.notes){paragraph('No site notes added yet. A contractor can help confirm the measurements, existing conditions and practical scope.',{color:muted,size:10,leading:16,after:18})}
+ if(model.costs.length){ensure(110+model.costs.length*25);heading('Your working budget');for(const cost of model.costs){ensure(28);draw(cost.label,M,y,{size:10});draw(usd(cost.value),W-M-110,y,{size:11});y-=25}ensure(90);draw('Contingency ('+model.contingency+'%)',M,y,{size:10});draw(usd(model.total-model.subtotal),W-M-110,y,{size:11});y-=25;page.drawLine({start:{x:M,y:y+9},end:{x:W-M,y:y+9},color:line,thickness:.6});draw('Total entered + contingency',M,y-9,{size:11,font:bold});draw(usd(model.total),W-M-110,y-9,{size:13,font:bold});y-=38;paragraph('Only the costs you entered are included. This is not an automatic project-cost estimate.',{size:9,color:muted,leading:14,after:18})}
+ else{heading('Budget to develop');paragraph(model.target!==null?'Your target of '+usd(model.target)+' is a planning limit. No material or labour costs have been added yet; ask for itemised quotes to develop the budget.':'You can add a target and your own cost figures later. Ask for itemised quotes before deciding what to spend.',{size:10,color:muted,leading:16,after:18})}
+ heading('Before you ask for quotes');for(const [index,item] of model.scope.entries()){const ls=lines(item.text,CW-30,10,body);ensure(ls.length*16+27);const top=y;page.drawRectangle({x:M,y:top-8,width:10,height:10,borderWidth:.8,borderColor:item.confirmed?ink:line,color:item.confirmed?sage:white});if(item.confirmed){page.drawLine({start:{x:M+2,y:top-4},end:{x:M+4,y:top-6},thickness:1,color:ink});page.drawLine({start:{x:M+4,y:top-6},end:{x:M+8,y:top},thickness:1,color:ink})}paragraph(item.text,{x:M+23,width:CW-23,size:10,leading:16,after:2});draw(item.confirmed?'Confirmed by you':'To discuss with your contractor',M+23,y,{size:8,color:muted});y-=25}
+ heading('Useful next steps');const links=[...model.materials.map(m=>({label:m.label,url:'https://prepmybuild.com/calculators/'+m.calculator+'-calculator'})),{label:'Check a contractor quote',url:'https://prepmybuild.com/quote-check'},{label:'Compare contractor quotes',url:'https://prepmybuild.com/compare-quotes'}];
+ for(const item of links){ensure(43);draw(item.label,M,y,{size:10,font:bold});y-=15;paragraph(item.url,{size:8,color:muted,leading:12,after:9});const {PDFName,PDFString}=PDFLib;const rect=[M,y+7,W-M,y+39];const annot=doc.context.obj({Type:'Annot',Subtype:'Link',Rect:rect,Border:[0,0,0],A:{Type:'Action',S:'URI',URI:PDFString.of(item.url)}});page.node.addAnnot(doc.context.register(annot))}
+ const notice='Planning draft only. Confirm measurements, permissions, product specifications, site conditions and the final written scope before agreeing to work. Reference photos are not included in this PDF.';ensure(lines(notice,CW,8,body).length*12);paragraph(notice,{size:8,color:muted,leading:12,after:0});
+ const pages=doc.getPages();pages.forEach((p,i)=>{p.drawLine({start:{x:M,y:44},end:{x:W-M,y:44},color:line,thickness:.6});p.drawText('PREPMYBUILD  /  Plan first. Spend smarter.',{x:M,y:28,font:body,size:8,color:muted});p.drawText('Draft  |  '+(i+1)+' / '+pages.length,{x:W-M-70,y:28,font:body,size:8,color:muted})});
+ return doc.save();
+}
