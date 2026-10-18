@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node build.mjs && node postbuild.mjs && node seo-pages.mjs && node growth.mjs"
+    "build": "node build.mjs && node postbuild.mjs && node seo-pages.mjs && node growth.mjs && node redesign.mjs",
+    "test": "node tests/functionality.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
   }
 }
