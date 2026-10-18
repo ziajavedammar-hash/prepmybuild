@@ -1,0 +1,41 @@
+// Planning quantities use the existing calculators' formulas. No prices are estimated.
+export const quantityFields={
+ fence:[['length','Straight run length (ft)',null],['spacing','Maximum post spacing (ft)',8]],
+ paint:[['length','Room length (ft)',null],['width','Room width (ft)',null],['height','Wall height (ft)',8],['coats','Coats',2],['coverage','Coverage (sq ft / gallon)',350],['doors','Doors (20 sq ft each)',1],['windows','Windows (15 sq ft each)',2]],
+ patio:[['length','Surface length (ft)',null],['width','Surface width (ft)',null],['depth','Material depth (in)',4],['waste','Extra material (%)',10],['density','Gravel density (tons / cubic yard)',1.4]]
+};
+export function materialPlan(project,values={}){
+ const fields=quantityFields[project];
+ if(!fields)return {status:'scope',summary:'Use the quote-request sheet to confirm specifications before ordering materials.',inputs:[],assumptions:[]};
+ if(project==='patio'&&!['concrete','gravel'].includes(values.surface))return {status:'empty',summary:'Choose poured concrete or gravel to calculate a supported surface quantity. Pavers need a separate layout and product takeoff.',inputs:[],assumptions:[]};
+ const active=fields.filter(([id])=>!(project==='patio'&&values.surface==='concrete'&&id==='density'));
+ const missing=active.some(([id,f,d])=>d===null&&(values[id]===undefined||values[id]===''));
+ const n=Object.fromEntries(active.map(([id,,d])=>[id,Number(values[id]??d)]));
+ const invalid=active.filter(([id,,d])=>!(d===null&&(values[id]===undefined||values[id]===''))).some(([id])=>!Number.isFinite(n[id])||n[id]>100000||(['doors','windows','waste'].includes(id)?n[id]<0:n[id]<=0)||(['coats','doors','windows'].includes(id)&&!Number.isInteger(n[id])));
+ if(invalid)return {status:'invalid',summary:'Use positive measurements; opening counts must be whole numbers. Extra material and opening counts may be zero.',inputs:[],assumptions:[]};
+ if(missing)return {status:'empty',summary:'Add the measurements you know to include a planning quantity in your PDF. You can also download without them.',inputs:[],assumptions:[]};
+ const inputs=active.map(([id,label])=>label+': '+n[id]);let summary,assumptions;
+ if(project==='fence'){
+ const sections=Math.ceil(n.length/n.spacing);summary=(sections+1)+' posts / '+sections+' sections — straight-run baseline';
+ assumptions=['Formula: round length / maximum spacing up to a whole section, then add one end post. Matches the fence calculator with zero gates.','One uninterrupted straight run; gates, corners, shared end posts and changes in level are excluded. Calculate separate runs and reconcile shared posts with your installer.','Not a purchase list: confirm height, board/panel widths, gate posts and footings before ordering. No board, fastener or concrete quantity has been calculated.'];
+ }else if(project==='paint'){
+ const area=Math.max(0,2*(n.length+n.width)*n.height-n.doors*20-n.windows*15),gallons=area*n.coats/n.coverage;
+ if(area===0)return {status:'invalid',summary:'Door and window allowances remove all wall area. Check room dimensions and opening counts.',inputs:[],assumptions:[]};
+ summary=Math.ceil(gallons)+' gallons of wall paint ('+gallons.toFixed(2)+' calculated)';
+ assumptions=[area.toFixed(1)+' sq ft of net wall area × '+n.coats+' coats / '+n.coverage+' sq ft per gallon; rounded up to whole gallons.','Rectangular room, four walls, less 20 sq ft per door and 15 sq ft per window. Ceilings, trim, primer and extra waste are excluded.','Confirm actual openings and the paint manufacturer’s coverage; texture, colour changes and substrate can increase consumption.'];
+ }else{
+ const yd=n.length*n.width*(n.depth/12)/27*(1+n.waste/100);summary=values.surface==='concrete'?yd.toFixed(1)+' cubic yards of poured concrete':(yd*n.density).toFixed(1)+' tons of gravel';inputs.unshift('Surface: '+values.surface);
+ assumptions=['Formula: length × width × depth / 12 / 27, plus '+n.waste+'% extra material'+(values.surface==='gravel'?', then × '+n.density+' tons per cubic yard.':'.'),'Rectangular surface layer only. Sub-base, excavation, reinforcement, drainage and compaction allowances are not calculated.','Depth is a quantity input, not a recommended construction specification. Confirm design, supplier increments'+(values.surface==='gravel'?' and actual aggregate density':'')+' before ordering.'];
+ }
+ return {status:'ready',summary,inputs,assumptions};
+}
+const scopes={
+ fence:{items:['Site measurement and boundary confirmation responsibilities','Old fence removal, disposal and protection of planting','Fence material, height, board/panel style and finish','Posts, footings, fixings and work on slopes','Gates: count, clear opening, hardware and additional posts'],questions:['Where does each run start and stop, and who confirms boundaries and underground services?','Are gates, corners, removal and final finishing included?','What maintenance does this material and finish need?']},
+ paint:{items:['Wall preparation, repairs, sanding and stain treatment','Primer requirements and separate wall, ceiling and trim areas','Named paint product, colour, sheen and number of coats','Furniture moving, floor protection and access','Cleanup, disposal and touch-up materials'],questions:['Which surfaces and repairs are excluded?','Who supplies paint, and how will extra coats be priced?','How will occupied rooms be protected and returned to use?']},
+ patio:{items:['Site levels, excavation, spoil removal and access','Base material, thickness and compaction specification','Drainage, falls and connection details','Surface product, thickness, edges and joint treatment','Protection, cleanup and reinstatement of disturbed areas'],questions:['Is this poured concrete, gravel, or a paver system? Do not price from the photo alone.','What ground conditions could change the price, and how are changes agreed?','Who confirms drainage, underground services and any local approvals?']},
+ bathroom:{items:['Demolition, disposal and protection of adjacent rooms','Layout and plumbing changes, with fixture schedule','Substrate preparation, waterproofing system and tile extent','Ventilation, electrical, lighting and fittings','Supply/installation responsibilities and final making good'],questions:['What happens if hidden moisture damage or unsuitable substrates are found?','Are fixtures, tile allowances and waterproofing documentation included?','How long will the bathroom be unavailable, and what inspections apply locally?']},
+ kitchen:{items:['Cabinet layout, sizes, storage hardware and installation','Worktop material, cut-outs, upstands and fitting','Appliance list and responsibility for supply/connection','Plumbing, electrical, ventilation and service changes','Demolition, disposal, floor/wall repairs and decoration'],questions:['Which appliances, fittings and material allowances are included?','When will final measurements be taken, and what are the lead times?','How will service changes, unexpected repairs and temporary kitchen access be handled?']},
+ custom:{items:['Defined work areas and measurable quantities','Named materials, finishes and supply responsibilities','Preparation, protection, access and disposal','Services, approvals and specialist work to confirm','Completion criteria and items expressly excluded'],questions:['What must be measured or investigated before a fixed quote?','What assumptions and allowances could change the final price?','What work will the homeowner or another trade complete?']}
+};
+export function quoteSheet(project){return scopes[project]||scopes.custom}
+export function planningText(project,quantity){const q=quoteSheet(project);return ['MATERIAL PLANNING',quantity.summary,...quantity.inputs,...quantity.assumptions,'','CONTRACTOR QUOTE REQUEST','Please quote the same written scope and identify assumptions, allowances and exclusions.',...q.items.map(x=>'Price separately / confirm: '+x),'','QUESTIONS TO RESOLVE',...q.questions,'','ASK EVERY CONTRACTOR FOR','Itemised materials, labour, disposal, permits and taxes; mark anything excluded.','Named products and allowance amounts; a written process and price basis for variations.','Proposed start, duration, payment stages, quote validity and warranty terms.','A site visit and written confirmation of all measurements before ordering.'].join('\n')}

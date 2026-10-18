@@ -26,6 +26,7 @@ await cp('redesign/assets','dist/assets/redesign',{recursive:true});
 await cp('redesign/site.css','dist/assets/planning.css');
 await cp('redesign/client.js','dist/assets/planning.js');
 await cp('redesign/content.mjs','dist/assets/planning-content.js');
+await cp('redesign/project-planning.mjs','dist/assets/project-planning.js');
 await cp('redesign/plan-pdf.mjs','dist/assets/plan-pdf.js');
 await cp('redesign/plan-download.js','dist/assets/plan-download.js');
 await cp('redesign/fonts','dist/assets/fonts',{recursive:true});

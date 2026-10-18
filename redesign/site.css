@@ -9,3 +9,5 @@
 .look-toolbar-actions{display:flex;align-items:center;gap:10px}.button.compact{padding:9px 15px;min-height:38px;font-size:11px}.planner-container:has(.wizard-panel:not([hidden])){min-height:65vh}@media(max-width:560px){.look-toolbar{flex-wrap:wrap}.look-toolbar>span{max-width:none;width:100%}.look-toolbar-actions{width:100%;justify-content:space-between}.look-toolbar-actions>button{flex:1}.button.compact{padding:10px 13px}}
 /* Keep the wizard header in normal flow so it cannot cover the step heading. */
 .planning-wizard>.site-header{position:relative;top:auto}.planning-wizard .planner-bar{scroll-margin-top:20px}
+
+.quantity-result{font-weight:600;color:var(--ink);line-height:1.5}.quantity-section li,.quote-preview li{margin-bottom:.55rem}.quote-preview{margin:1.5rem 0;padding:1.4rem;border:1px solid #d9dfd4;border-radius:12px;background:#f5f6f0}.quote-preview h3{margin:.5rem 0}.quantity-section .fields{margin-top:1rem}

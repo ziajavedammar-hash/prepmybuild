@@ -1,3 +1,4 @@
+import {materialPlan,quoteSheet} from '../redesign/project-planning.mjs';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import * as PDFLib from 'pdf-lib';
@@ -7,9 +8,9 @@ import {projects,conceptFor} from '../redesign/content.mjs';
 const out=process.env.PDF_QA_DIR||new URL('../tmp/pdf-qa',import.meta.url).pathname;
 await mkdir(out,{recursive:true});
 const p=projects.find(x=>x.id==='fence'),c=conceptFor('fence','natural');
-const model={projectId:'fence',project:'Fencing',name:'',date:'October 18, 2026',style:'Warm & natural',conceptTitle:c.title,image:c.image,consideration:c.consideration,details:c.details.map(x=>x.join(': ')),goal:'',customIdea:'',measurements:'',notes:'',target:15000,timing:'3–6 months',costs:[],subtotal:0,contingency:10,total:0,scope:p.scope.map(text=>({text,confirmed:false})),materials:p.materials.map(([label,calculator])=>({label,calculator}))};
+const model={quantity:materialPlan('fence',{length:'100'}),quote:quoteSheet('fence'),projectId:'fence',project:'Fencing',name:'',date:'October 18, 2026',style:'Warm & natural',conceptTitle:c.title,image:c.image,consideration:c.consideration,details:c.details.map(x=>x.join(': ')),goal:'',customIdea:'',measurements:'',notes:'',target:15000,timing:'3–6 months',costs:[],subtotal:0,contingency:10,total:0,scope:p.scope.map(text=>({text,confirmed:false})),materials:p.materials.map(([label,calculator])=>({label,calculator}))};
 const deps={PDFLib,fontkit,bodyFont:await readFile('redesign/fonts/Body.ttf'),displayFont:await readFile('redesign/fonts/Display.ttf'),conceptJpeg:await readFile(process.env.PDF_QA_IMAGE||'tests/fixtures/concept.jpg')};
-const bytes=await createPlanPdf(model,deps);const doc=await PDFLib.PDFDocument.load(bytes);assert.equal(doc.getPageCount(),2);assert.ok(bytes.length>10000);assert.ok(bytes.length<1000000);assert.equal(doc.getTitle(),'Fencing project plan');await writeFile(out+'/fence-plan.pdf',bytes);
+const bytes=await createPlanPdf(model,deps);const doc=await PDFLib.PDFDocument.load(bytes);assert.ok(doc.getPageCount()>=3&&doc.getPageCount()<=4);assert.ok(bytes.length>10000);assert.ok(bytes.length<1000000);assert.equal(doc.getTitle(),'Fencing project plan');await writeFile(out+'/fence-plan.pdf',bytes);
 const long={...model,name:'Courtyard fence - a carefully considered renovation with privacy, access and planting',goal:'Keep the old gate. Café-style seating nearby; dimensions 8 × 10 ft. '.repeat(45),measurements:'Run A: 60 ft.\nRun B: 40 ft.\nGate opening: 4 ft.',notes:('Confirm every boundary and make space for planting. '+ 'X'.repeat(150)+'\n').repeat(16),costs:[{label:'Materials',value:5000},{label:'Labour',value:4000},{label:'Permits, disposal & other costs',value:0}],subtotal:9000,total:9900,scope:model.scope.map((x,i)=>({...x,confirmed:i===0}))};
 const stress=await createPlanPdf(long,deps);const stressDoc=await PDFLib.PDFDocument.load(stress);assert.ok(stressDoc.getPageCount()>2);assert.ok(stressDoc.getPageCount()<15);await writeFile(out+'/long-plan.pdf',stress);
-console.log('PDF checks passed: real PDF bytes, embedded image/fonts, two-page sample, Unicode text, long notes and budget pagination.');
+console.log('PDF checks passed: real PDF bytes, embedded image/fonts, material quantities, contractor sheet, Unicode text, long notes and budget pagination.');
